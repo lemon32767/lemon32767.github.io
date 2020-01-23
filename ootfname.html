@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>oot filename previewer</title>
+	<script>
+
+//the hex value of each character is its offset in this string:
+var mapping =
+	"0123456789あいうえおか" +
+	"きくけこさしすせそたちつてとなに" +
+	"ぬねのはひふへほまみむめもやゆよ" +
+	"らりるれろわをんぁぃぅぇぉっゃゅ" +
+	"ょがぎぐげござじずぜぞだぢづでど" +
+	"ばびぶべぼぱぴぷぺぽアイウエオカ" +
+	"キクケコサシスセソタチツテトナニ" +
+	"ヌネノハヒフヘホマミムメモヤユヨ" +
+	"ラリルレロワヲんァィゥェォッャュ" +
+	"ょガギグゲゴザジズゼゾダヂヅデド" +
+	"バビブベボパピプぺポヴABCDE" +
+	"FGHIJKLMNOPQRSTU" +
+	"VWXYZabcdefghijk" +
+	"lmnopqrstuvwxyz " +
+	"????ー?????."
+;
+function isalnum(ch) {
+	return (ch >= 0 && ch <= 9) || (ch >= 0xAB && ch <= 0xDE) || ch == 0xEA;
+}
+function ishiragana(ch) {
+	return (ch >= 0xA && ch <= 0x59);
+}
+function iskatakana(ch) {
+	return (ch >= 0x5A && ch <= 0xAA);
+}
+function charColor(ch) {
+	if (isalnum(ch)) {
+		return '#FFAA0A';
+	} else if (ishiragana(ch)) {
+		return '#CA1E38';
+	} else if (iskatakana(ch)) {
+		return '#12EF41';
+	} else {
+		return '#000000';
+	}
+}
+
+var translate;
+window.onload = function() {
+	var hexinput = document.getElementById("hexinput");
+	var fnameout = document.getElementById("fnameout");
+	translate = function() {
+		fnameout.innerText = "...";
+		var err = function(e) {
+			fnameout.innerText = e || "[invalid input]";
+		}
+		
+		var hx = hexinput.value.replace(/\s/g, "");
+		console.log(hx);
+		
+		if (hx.length > 16) {
+			return err("[input too long]");
+		} else if (hx.length % 2) {
+			return err();
+		} 
+
+		while (fnameout.firstChild) fnameout.removeChild(fnameout.firstChild);
+		var label = document.createElement("span");
+		label.innerText = "filename: "
+		fnameout.appendChild(label);
+		
+		//console.log(hx);
+		for (var i = 0; i < hx.length; i += 2) {
+			var xdigit = hx.substring(i, i+2);
+			if (xdigit.match(/[^0-9a-fA-F]/)) return err();
+			
+			var charcode = parseInt(xdigit, 16);
+			if (!charcode && charcode !== 0) return err();
+			//console.log(charcode);
+
+			var char = mapping.substring(charcode,charcode+1);
+			if (!char.length || char == '?') return err("byte " + xdigit.toUpperCase() + " not in character set");
+			
+			var span = document.createElement("span");
+			span.innerText = char;
+			span.style = "color:"+charColor(charcode)+";"
+			fnameout.appendChild(span);
+		};
+	};
+	
+	hexinput.oninput = translate;
+	if (hexinput.value) translate();
+};
+	</script>
+</head>
+
+<body>
+	<noscript>javascript is required</noscript>
+	<div style="margin-left: 10%; max-width: 80%;">
+		<h1>ocarina of time filename previewer</h1>
+		<h4><a href="https://docs.google.com/spreadsheets/d/1ovhZhmYEA7AnIIfPNFtXyeu7YrgfPRDmbniiwm1KxAc/edit#gid=336632176">source</a></h4>
+		<input id="hexinput" type="text" placeholder="hex digits here"><input type="button" onclick="translate();" value="preview">
+		<div id="fnameout"><span>filename: </span></div>
+
+		<br>
+
+		<h3>in-game keyboard reference:</h3>
+		<img src="./tokiocahiragana.png"  width="300" title="hiragana screen"     >
+		<img src="./tokiocakatakana.png"  width="300" title="katakana screen"     >
+		<img src="./tokiocaeisuu.png"     width="300" title="alphanumeric screen" >
+
+		<h3>notes</h3>
+		<ul>
+		<li>the character &quot;ー&quot; is the same in all screens</li>
+		<li>all spaces are the same</li>
+		<li>to type hiragana and katakana characters with dakuten (゛) or handakuten (゜), first type the character normally like ふ and then press  ゛/ ゜to make it ぶ/ぷ</li>
+		<li>pay special attention to distinguish あいうえおやゆよつアイウエオヤユヨツ from ぁぃぅぇぉゃゅょっァィゥェォャュョッ, respectively</li>
+		<li>also be careful with hiragana へ(and べ,ぺ) and katakana ヘ(べ,ペ), they are different characters</li>
+		<li>it's not a bad idea to skim this <a href="https://en.wikipedia.org/wiki/Kana">https://en.wikipedia.org/wiki/Kana</a></li>
+		</ul>
+		<br>
+		<p>
+		if theres any mistakes please let me know
+		</p>
+	</div>
+</body>
+
+</html>
