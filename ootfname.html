@@ -21,7 +21,7 @@ var mapping =
 	"バビブベボパピプぺポヴABCDE" +
 	"FGHIJKLMNOPQRSTU" +
 	"VWXYZabcdefghijk" +
-	"lmnopqrstuvwxyz " +
+	"lmnopqrstuvwxyz　" + /*fullwidth space for clarity*/
 	"????ー?????."
 ;
 function isalnum(ch) {
@@ -68,7 +68,13 @@ window.onload = function() {
 		var label = document.createElement("span");
 		label.innerText = "filename: "
 		fnameout.appendChild(label);
-		
+	
+		if (hx.length) {
+			var quot = document.createElement("span");
+			quot.innerText = "\"";
+			fnameout.appendChild(quot);
+		}
+
 		//console.log(hx);
 		for (var i = 0; i < hx.length; i += 2) {
 			var xdigit = hx.substring(i, i+2);
@@ -86,6 +92,17 @@ window.onload = function() {
 			span.style = "color:"+charColor(charcode)+";"
 			fnameout.appendChild(span);
 		};
+
+		if (hx.length) {
+			var quot = document.createElement("span");
+			quot.innerText = "\"";
+			fnameout.appendChild(quot);
+
+			var leng = document.createElement("span");
+			leng.innerText = "  (length: " + hx.length/2 + ")";
+			fnameout.appendChild(leng);
+		}
+
 	};
 	
 	hexinput.oninput = translate;
@@ -120,7 +137,7 @@ window.onload = function() {
 		</ul>
 		<br>
 		<p>
-		if theres any mistakes please let me know
+		if there's any mistakes or suggestions please let me know
 		</p>
 	</div>
 </body>
