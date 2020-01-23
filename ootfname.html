@@ -58,9 +58,9 @@ window.onload = function() {
 		var hx = hexinput.value.replace(/\s/g, "");
 		console.log(hx);
 		
-		if (hx.length > 16) {
+		/*if (hx.length > 16) {
 			return err("[input too long]");
-		} else if (hx.length % 2) {
+		} else*/ if (hx.length % 2) {
 			return err();
 		} 
 
@@ -100,6 +100,9 @@ window.onload = function() {
 
 			var leng = document.createElement("span");
 			leng.innerText = "  (length: " + hx.length/2 + ")";
+			if (hx.length > 16) {
+				leng.style = "color:#ff0000;";
+			}
 			fnameout.appendChild(leng);
 		}
 
