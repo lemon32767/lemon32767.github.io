@@ -3,7 +3,8 @@
 
 <head>
   <meta charset="utf-8">
-  <title>oot filename previewer</title>
+  <title>oot/mm filename previewer</title>
+  <link rel="shortcut icon" href="./ootfnameico.ico">
 	<script>
 
 //the hex value of each character is its offset in this string:
@@ -114,10 +115,10 @@ window.onload = function() {
 	</script>
 </head>
 
-<body>
+<body style="background-image: url('./ootfnamebg.png');">
 	<noscript>javascript is required</noscript>
 	<div style="margin-left: 10%; max-width: 80%;">
-		<h1>ocarina of time filename previewer</h1>
+		<h1>ocarina of time/majora's mask filename previewer</h1>
 		<h4><a href="https://docs.google.com/spreadsheets/d/1ovhZhmYEA7AnIIfPNFtXyeu7YrgfPRDmbniiwm1KxAc/edit#gid=336632176">source</a></h4>
 		<input id="hexinput" type="text" placeholder="hex digits here"><input type="button" onclick="translate();" value="preview">
 		<div id="fnameout"><span>filename: </span></div>
