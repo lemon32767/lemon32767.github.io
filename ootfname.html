@@ -10,6 +10,16 @@
 	<meta property="og:image" content="./ootfnameico.png" />
 	<meta property="og:image:width" content="48" />
 	<meta property="og:image:height" content="48" />
+
+	<style>
+.fnamespan {
+	background-color: #15298687;
+	border-radius:3px;
+	/*font-weight:bold;*/
+	text-shadow: 1px 1px #00000077;
+}
+	</style>
+
 	<script>
 
 //the hex value of each character is its offset in this string:
@@ -71,17 +81,23 @@ window.onload = function() {
 		} 
 
 		while (fnameout.firstChild) fnameout.removeChild(fnameout.firstChild);
+
 		var label = document.createElement("span");
 		label.innerText = "filename: "
 		fnameout.appendChild(label);
 	
-		if (hx.length) {
+		/* if (hx.length) {
 			var quot = document.createElement("span");
 			quot.innerText = "\"";
 			fnameout.appendChild(quot);
-		}
+		}*/
 
 		//console.log(hx);
+		var fnamespan = document.createElement("span");
+		//fnamespan.style = "background-color: #15298687; border-radius:3px; font-weight:bold; text-shadow: 1px 1px #00000077;";
+		fnamespan.classList.add('fnamespan');
+
+		fnameout.appendChild(fnamespan);
 		for (var i = 0; i < hx.length; i += 2) {
 			var xdigit = hx.substring(i, i+2);
 			if (xdigit.match(/[^0-9a-fA-F]/)) return err();
@@ -96,13 +112,13 @@ window.onload = function() {
 			var span = document.createElement("span");
 			span.innerText = char;
 			span.style = "color:"+charColor(charcode)+";"
-			fnameout.appendChild(span);
+			fnamespan.appendChild(span);
 		};
 
 		if (hx.length) {
-			var quot = document.createElement("span");
+			/*var quot = document.createElement("span");
 			quot.innerText = "\"";
-			fnameout.appendChild(quot);
+			fnameout.appendChild(quot);*/
 
 			var leng = document.createElement("span");
 			leng.innerText = "  (length: " + hx.length/2 + ")";
@@ -120,7 +136,7 @@ window.onload = function() {
 	</script>
 </head>
 
-<body style="background-image: url('./ootfnamebg.png');">
+<body>
 	<noscript>javascript is required</noscript>
 	<div style="margin-left: 10%; max-width: 80%;">
 		<h1>ocarina of time/majora's mask filename previewer</h1>
