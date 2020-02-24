@@ -33,6 +33,9 @@
 	</style>
 
 	<script>
+'use strict';
+
+//pasting this here for quick testing: all characters in order: 000102030405060708090A0B0C0D0E0F101112131415161718191A1B1C1D1E1F202122232425262728292A2B2C2D2E2F303132333435363738393A3B3C3D3E3F404142434445464748494A4B4C4D4E4F505152535455565758595A5B5C5D5E5F606162636465666768696A6B6C6D6E6F707172737475767778797A7B7C7D7E7F808182838485868788898A8B8C8D8E8F909192939495969798999A9B9C9D9E9FA0A1A2A3A4A5A6A7A8A9AAABACADAEAFB0B1B2B3B4B5B6B7B8B9BABBBCBDBEBFC0C1C2C3C4C5C6C7C8C9CACBCCCDCECFD0D1D2D3D4D5D6D7D8D9DADBDCDDDEDFE4EA
 
 //the hex value of each character is its offset in this string:
 var mapping =
@@ -56,26 +59,18 @@ function isalnum(ch) {
 	return (ch >= 0 && ch <= 9) || (ch >= 0xAB && ch <= 0xDE) || ch == 0xEA;
 }
 function ishiragana(ch) {
-	return (ch >= 0xA && ch <= 0x59);
+	return ch >= 0xA && ch <= 0x59;
 }
 function iskatakana(ch) {
-	return (ch >= 0x5A && ch <= 0xAA);
+	return ch >= 0x5A && ch <= 0xAA;
 }
 function havedakuten(ch) {
-	if (ishiragana(ch)) {
-		return ch >= 0x41 && ch <= 0x54;
-	} else if (iskatakana(ch)) {
-		return ch == 0xAA || ch >= 0x91 && ch <= 0xA4;
-	}
-	return false;
+	return ch >= 0x41 && ch <= 0x54 //hiragana
+	    || ch == 0xAA || ch >= 0x91 && ch <= 0xA4; //katakana
 }
 function havehandakuten(ch) {
-	if (ishiragana(ch)) {
-		return ch >= 0x55 && ch <= 0x59;
-	} else if (iskatakana(ch)) {
-		return ch >= 0xA5 && ch <= 0xA9;
-	}
-	return false;
+	return ch >= 0x55 && ch <= 0x59  //hiragana
+	    || ch >= 0xA5 && ch <= 0xA9; //katakana
 }
 function charColor(ch) {
 	if (isalnum(ch)) {
@@ -175,16 +170,16 @@ function calcCurScrDocX(scr,x) {
 	var screeni = _screenis[scr];
 	var offset = window.scrollX + screeni.getBoundingClientRect().left; //document offset
 	var scale = screeni.width/810;
-	var offset2 = 100 * scale; //image offset
-	return offset + offset2 + (x-scale)*scale*glyphSize;
+	var offset2 = 100; //image offset
+	return offset + (offset2 + (x-scale)*glyphSize)*scale;
 	//return offset + offset2;
 }
 function calcCurScrDocY(scr,y) {
 	var screeni = _screenis[scr];
 	var offset = window.scrollY + screeni.getBoundingClientRect().top;
 	var scale = screeni.height/544;
-	var offset2 = 155 * scale;
-	return offset + offset2 + (y-scale)*scale*glyphSize;
+	var offset2 = 155;
+	return offset + (offset2 + (y-scale)*glyphSize)*scale;
 	//return offset + offset2;
 }
 
@@ -202,18 +197,20 @@ window.onload = function() {
 		}
 
 		fnameout.innerText = "...";
-		var err = function(e) {
+		function err(e) {
 			fnameout.innerText = e || "[invalid input]";
 		}
 		
-		var hx = hexinput.value.replace(/\s/g, "");
+		var hx = hexinput.value.replace(/\s/g, ""); //trim whitespace
 		//console.log(hx);
 		
 		/*if (hx.length > 16) {
 			return err("[input too long]");
 		} else*/ if (hx.length % 2) {
 			return err();
-		} 
+		} else if (hx.match(/[^0-9a-fA-F]/)) {
+			return err();
+		}
 
 		while (fnameout.firstChild) fnameout.removeChild(fnameout.firstChild);
 
@@ -235,10 +232,9 @@ window.onload = function() {
 		fnameout.appendChild(fnamespan);
 		for (var i = 0; i < hx.length; i += 2) {
 			var xdigit = hx.substring(i, i+2);
-			if (xdigit.match(/[^0-9a-fA-F]/)) return err();
 			
 			var charcode = parseInt(xdigit, 16);
-			if (!charcode && charcode !== 0) return err();
+			if (!charcode && charcode !== 0) return err("bad hex byte '" + xdigit + "'");
 			//console.log(charcode);
 
 			var char = mapping.charAt(charcode);
@@ -248,75 +244,74 @@ window.onload = function() {
 			span.innerText = char;
 			span.style = "color:"+charColor(charcode)+";";
 			span.classList.add("charhover"); //highglight on hover
-			//closure needed to encapsulate some vars
+			//closure needed to encapsulate current charcode
 			(function() {
 				var ch = charcode;
-				span.addEventListener("mouseover", function(ev) {
+				span.onmouseover = function(ev) {
 
 					var c1 = document.getElementById("cursor1");
 					var c2 = document.getElementById("cursor2");
 					var c3 = document.getElementById("cursor3");
 
-					var scr = charScreenIdx(ch);
-					var coords = charScreenPos(ch);
-					var x = coords[0], y = coords[1];
-
-					c1.classList.remove("hidecursor");
-					c3.classList.add("hidecursor");
+					function showCur(c) { c.classList.remove("hidecursor"); }
+					function hideCur(c) { c.classList.add("hidecursor"); }
+					function setCurPos(c,scr,x,y) {
+						c.style.left = calcCurScrDocX(scr,x)+"px";
+						c.style.top  = calcCurScrDocY(scr,y)+"px";
+					}
 
 					if (ch == 0xDF) {
 						//space, just use random ones because why not
-						c2.classList.remove("hidecursor");
-						c3.classList.remove("hidecursor");
-
 						var kanascr_spaces = [[7,1],[7,3],[9,1],[9,3],[11,1],[11,3],[12,1]];
 						
 						var hrgnspace = kanascr_spaces[Math.floor(Math.random()*kanascr_spaces.length)];
-						c1.style.left = calcCurScrDocX(1,hrgnspace[0])+"px";
-						c1.style.top  = calcCurScrDocY(1,hrgnspace[1])+"px";
+						setCurPos(c1, 1, hrgnspace[0], hrgnspace[1]);
+						showCur(c1);
 
 						var ktknspace = kanascr_spaces[Math.floor(Math.random()*kanascr_spaces.length)];
-						c2.style.left = calcCurScrDocX(2,ktknspace[0])+"px";
-						c2.style.top  = calcCurScrDocY(2,ktknspace[1])+"px";
+						setCurPos(c2, 2, ktknspace[0], ktknspace[1]);
+						showCur(c2);
 
-						c3.style.left = calcCurScrDocX(3,12)+"px";
-						c3.style.top  = calcCurScrDocY(3,4)+"px";
+						setCurPos(c3, 3, 12,4);
+						showCur(c3);
 					} else if (ch == 0xE4) {
 						// dash/choonpu
-						c2.classList.remove("hidecursor");
-						c3.classList.remove("hidecursor");
 
 						//長音符1
-						c1.style.left = calcCurScrDocX(1,12)+"px";
-						c1.style.top  = calcCurScrDocY(1,2)+"px";
+						setCurPos(c1, 1, 12,2);
+						showCur(c1);
 
 						//長音符2
-						c2.style.left = calcCurScrDocX(2,12)+"px";
-						c2.style.top  = calcCurScrDocY(2,2)+"px";
+						setCurPos(c2, 2, 12,2);
+						showCur(c2);
 
 						//dash -
-						c3.style.left = calcCurScrDocX(3,11)+"px";
-						c3.style.top  = calcCurScrDocY(3,4)+"px";
+						setCurPos(c3, 3, 11,4);
+						showCur(c3);
 					} else {
 						// other characters
-						c1.style.left = calcCurScrDocX(scr,x)+"px";
-						c1.style.top  = calcCurScrDocY(scr,y)+"px";
+						var scr = charScreenIdx(ch);
+						var coords = charScreenPos(ch);
+						var x = coords[0], y = coords[1];
+
+						setCurPos(c1, scr, x,y);
+						showCur(c1);
 
 						if (havedakuten(ch)) {
 							//゛
-							c2.classList.remove("hidecursor");
-							c2.style.left = calcCurScrDocX(scr,12)+"px";
-							c2.style.top  = calcCurScrDocY(scr,3)+"px";
+							setCurPos(c2, scr, 12,3);
+							showCur(c2);
 						} else if (havehandakuten(ch)) {
 							//゜
-							c2.classList.remove("hidecursor");
-							c2.style.left = calcCurScrDocX(scr,12)+"px";
-							c2.style.top  = calcCurScrDocY(scr,4)+"px";
+							setCurPos(c2, scr, 12,4);
+							showCur(c2);
 						} else {
-							c2.classList.add("hidecursor");
+							hideCur(c2);
 						}
+
+						hideCur(c3);
 					}
-				});
+				};
 			})();
 			fnamespan.appendChild(span);
 		};
@@ -337,6 +332,8 @@ window.onload = function() {
 	};
 	
 	hexinput.oninput = translate;
+	
+	//browsers might fill the input field with input from previous sessions without invoking oninput
 	if (hexinput.value) translate();
 };
 	</script>
@@ -362,6 +359,7 @@ window.onload = function() {
 		<img id="screen1" src="./tokiocahiragana.png"  width="300" title="hiragana screen"     >
 		<img id="screen2" src="./tokiocakatakana.png"  width="300" title="katakana screen"     >
 		<img id="screen3" src="./tokiocaeisuu.png"     width="300" title="alphanumeric screen" >
+
 
 		<h3>notes</h3>
 		<ul>
