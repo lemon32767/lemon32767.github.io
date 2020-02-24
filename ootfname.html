@@ -17,6 +17,18 @@
 	border-radius:3px;
 	/*font-weight:bold;*/
 	text-shadow: 1px 1px #00000077;
+	font-size: 22px;
+}
+.cursor {
+	position: absolute;
+	opacity: 0.7;
+	z-index: 999;
+}
+.hidecursor {
+	display: none;
+}
+.charhover:hover {
+	background-color: #ffffff88;
 }
 	</style>
 
@@ -32,8 +44,8 @@ var mapping =
 	"ばびぶべぼぱぴぷぺぽアイウエオカ" +
 	"キクケコサシスセソタチツテトナニ" +
 	"ヌネノハヒフヘホマミムメモヤユヨ" +
-	"ラリルレロワヲんァィゥェォッャュ" +
-	"ょガギグゲゴザジズゼゾダヂヅデド" +
+	"ラリルレロワヲンァィゥェォッャュ" +
+	"ョガギグゲゴザジズゼゾダヂヅデド" +
 	"バビブベボパピプぺポヴABCDE" +
 	"FGHIJKLMNOPQRSTU" +
 	"VWXYZabcdefghijk" +
@@ -49,6 +61,22 @@ function ishiragana(ch) {
 function iskatakana(ch) {
 	return (ch >= 0x5A && ch <= 0xAA);
 }
+function havedakuten(ch) {
+	if (ishiragana(ch)) {
+		return ch >= 0x41 && ch <= 0x54;
+	} else if (iskatakana(ch)) {
+		return ch == 0xAA || ch >= 0x91 && ch <= 0xA4;
+	}
+	return false;
+}
+function havehandakuten(ch) {
+	if (ishiragana(ch)) {
+		return ch >= 0x55 && ch <= 0x59;
+	} else if (iskatakana(ch)) {
+		return ch >= 0xA5 && ch <= 0xA9;
+	}
+	return false;
+}
 function charColor(ch) {
 	if (isalnum(ch)) {
 		return '#FFAA0A';
@@ -61,18 +89,125 @@ function charColor(ch) {
 	}
 }
 
+function charScreenIdx(ch) {
+	//        space         dash
+	if (ch == 0xDF || ch == 0xE4) {
+		//these show up in all screens
+		return null; 
+	}
+	else if (ishiragana(ch)) return 1;
+	else if (iskatakana(ch)) return 2;
+	else if (isalnum(ch))    return 3;
+}
+
+var SCR_ROW_CHRCOUNT = 13;
+
+//hardcoded because this is dumb, taken straight from the doc
+var _screenPositions = [];
+var _screenPositionsStr =
+	//digits
+	"4j4a4b4c4d4e4f4g4h4i" +
+	
+	//ひらがな
+		"0a1a2a3a4a" + //あ行
+		"0b1b2b3b4b" + //か行
+		"0c1c2c3c4c" + //さ行
+		"0d1d2d3d4d" + //た行
+		"0e1e2e3e4e" + //な行
+		"0f1f2f3f4f" + //は行
+		"0g1g2g3g4g" + //ま行
+		"0h2h4h"     + //や行
+		"0i1i2i3i4i" + //ら行
+		"0j2j4j"     + //わ行
+		"0k1k2k3k4k" + //ぁ行
+		"0m0l2l4l"   + //ゃとっ行
+		"0b1b2b3b4b" + //が行
+		"0c1c2c3c4c" + //ざ行
+		"0d1d2d3d4d" + //だ行
+		"0f1f2f3f4f" + //ば行
+		"0f1f2f3f4f" + //ぱ行
+	//カタカナ
+		"0a1a2a3a4a" + //ア行
+		"0b1b2b3b4b" + //カ行
+		"0c1c2c3c4c" + //サ行
+		"0d1d2d3d4d" + //タ行
+		"0e1e2e3e4e" + //ナ行
+		"0f1f2f3f4f" + //ハ行
+		"0g1g2g3g4g" + //マ行
+		"0h2h4h"     + //ヤ行
+		"0i1i2i3i4i" + //ラ行
+		"0j2j4j"     + //ワ行
+		"0k1k2k3k4k" + //ァ行
+		"0m0l2l4l"   + //ャとッ行
+		"0b1b2b3b4b" + //ガ行
+		"0c1c2c3c4c" + //ザ行
+		"0d1d2d3d4d" + //ダ行
+		"0f1f2f3f4f" + //バ行
+		"0f1f2f3f4f" + //パ行
+		"2a"         + //ヴ
+	//alphabet
+		"0a0b0c0d0e0f0g0h0i0j0k0l0m" + //A-M
+		"1a1b1c1d1e1f1g1h1i1j1k1l1m" + //N-Z
+		"2a2b2c2d2e2f2g2h2i2j2k2l2m" + //a-m
+		"3a3b3c3d3e3f3g3h3i3j3k3l3m" + //n-z
+	"  !?!?!?!?--!?!?!?!?!?" + //no
+	"4k" //'.'
+;
+for (var i = 0; i < _screenPositionsStr.length; i += 2) {
+	var row = new Number(_screenPositionsStr.charAt(i));
+	var col = (_screenPositionsStr.charCodeAt(i+1)) - 'a'.charCodeAt(0);
+	var idx = row * SCR_ROW_CHRCOUNT + col;
+	//console.log(i/2+": "+idx);
+	_screenPositions.push(idx);
+}
+
+function charScreenPos(ch) {
+	var idx = _screenPositions[ch];
+	var coords = [idx % SCR_ROW_CHRCOUNT, Math.floor(idx / SCR_ROW_CHRCOUNT)];
+	//console.log(ch,idx,coords);
+	return coords;
+}
+
+var _screenis = [];
+
+var glyphSize = 52.5;
+function calcCurScrDocX(scr,x) {
+	var screeni = _screenis[scr];
+	var offset = window.scrollX + screeni.getBoundingClientRect().left; //document offset
+	var scale = screeni.width/810;
+	var offset2 = 100 * scale; //image offset
+	return offset + offset2 + (x-scale)*scale*glyphSize;
+	//return offset + offset2;
+}
+function calcCurScrDocY(scr,y) {
+	var screeni = _screenis[scr];
+	var offset = window.scrollY + screeni.getBoundingClientRect().top;
+	var scale = screeni.height/544;
+	var offset2 = 155 * scale;
+	return offset + offset2 + (y-scale)*scale*glyphSize;
+	//return offset + offset2;
+}
+
 var translate;
 window.onload = function() {
 	var hexinput = document.getElementById("hexinput");
 	var fnameout = document.getElementById("fnameout");
+	for (var i = 1; i <= 3; i++) {
+		_screenis[i] = document.getElementById("screen"+i);
+	}
 	translate = function() {
+		//reset cursors
+		for (var i = 1; i <= 3; i++) {
+			document.getElementById("cursor"+i).classList.add("hidecursor");
+		}
+
 		fnameout.innerText = "...";
 		var err = function(e) {
 			fnameout.innerText = e || "[invalid input]";
 		}
 		
 		var hx = hexinput.value.replace(/\s/g, "");
-		console.log(hx);
+		//console.log(hx);
 		
 		/*if (hx.length > 16) {
 			return err("[input too long]");
@@ -106,12 +241,83 @@ window.onload = function() {
 			if (!charcode && charcode !== 0) return err();
 			//console.log(charcode);
 
-			var char = mapping.substring(charcode,charcode+1);
+			var char = mapping.charAt(charcode);
 			if (!char.length || char == '?') return err("byte " + xdigit.toUpperCase() + " not in character set");
 			
 			var span = document.createElement("span");
 			span.innerText = char;
-			span.style = "color:"+charColor(charcode)+";"
+			span.style = "color:"+charColor(charcode)+";";
+			span.classList.add("charhover"); //highglight on hover
+			//closure needed to encapsulate some vars
+			(function() {
+				var ch = charcode;
+				span.addEventListener("mouseover", function(ev) {
+
+					var c1 = document.getElementById("cursor1");
+					var c2 = document.getElementById("cursor2");
+					var c3 = document.getElementById("cursor3");
+
+					var scr = charScreenIdx(ch);
+					var coords = charScreenPos(ch);
+					var x = coords[0], y = coords[1];
+
+					c1.classList.remove("hidecursor");
+					c3.classList.add("hidecursor");
+
+					if (ch == 0xDF) {
+						//space, just use random ones because why not
+						c2.classList.remove("hidecursor");
+						c3.classList.remove("hidecursor");
+
+						var kanascr_spaces = [[7,1],[7,3],[9,1],[9,3],[11,1],[11,3],[12,1]];
+						
+						var hrgnspace = kanascr_spaces[Math.floor(Math.random()*kanascr_spaces.length)];
+						c1.style.left = calcCurScrDocX(1,hrgnspace[0])+"px";
+						c1.style.top  = calcCurScrDocY(1,hrgnspace[1])+"px";
+
+						var ktknspace = kanascr_spaces[Math.floor(Math.random()*kanascr_spaces.length)];
+						c2.style.left = calcCurScrDocX(2,ktknspace[0])+"px";
+						c2.style.top  = calcCurScrDocY(2,ktknspace[1])+"px";
+
+						c3.style.left = calcCurScrDocX(3,12)+"px";
+						c3.style.top  = calcCurScrDocY(3,4)+"px";
+					} else if (ch == 0xE4) {
+						// dash/choonpu
+						c2.classList.remove("hidecursor");
+						c3.classList.remove("hidecursor");
+
+						//長音符1
+						c1.style.left = calcCurScrDocX(1,12)+"px";
+						c1.style.top  = calcCurScrDocY(1,2)+"px";
+
+						//長音符2
+						c2.style.left = calcCurScrDocX(2,12)+"px";
+						c2.style.top  = calcCurScrDocY(2,2)+"px";
+
+						//dash -
+						c3.style.left = calcCurScrDocX(3,11)+"px";
+						c3.style.top  = calcCurScrDocY(3,4)+"px";
+					} else {
+						// other characters
+						c1.style.left = calcCurScrDocX(scr,x)+"px";
+						c1.style.top  = calcCurScrDocY(scr,y)+"px";
+
+						if (havedakuten(ch)) {
+							//゛
+							c2.classList.remove("hidecursor");
+							c2.style.left = calcCurScrDocX(scr,12)+"px";
+							c2.style.top  = calcCurScrDocY(scr,3)+"px";
+						} else if (havehandakuten(ch)) {
+							//゜
+							c2.classList.remove("hidecursor");
+							c2.style.left = calcCurScrDocX(scr,12)+"px";
+							c2.style.top  = calcCurScrDocY(scr,4)+"px";
+						} else {
+							c2.classList.add("hidecursor");
+						}
+					}
+				});
+			})();
 			fnamespan.appendChild(span);
 		};
 
@@ -138,18 +344,24 @@ window.onload = function() {
 
 <body>
 	<noscript>javascript is required</noscript>
+	
+	<img id="cursor1" class="cursor hidecursor" src="./ootfcur.png" width="28"></div>
+	<img id="cursor2" class="cursor hidecursor" src="./ootfcur.png" width="28"></div>
+	<img id="cursor3" class="cursor hidecursor" src="./ootfcur.png" width="28"></div>
+
 	<div style="margin-left: 10%; max-width: 80%;">
 		<h1>ocarina of time/majora's mask filename previewer</h1>
 		<h4><a href="https://docs.google.com/spreadsheets/d/1ovhZhmYEA7AnIIfPNFtXyeu7YrgfPRDmbniiwm1KxAc/edit#gid=336632176">source</a></h4>
 		<input id="hexinput" autofocus type="text" placeholder="hex digits here"><input type="button" onclick="translate();" value="preview">
 		<div id="fnameout"><span>filename: </span></div>
-
+		<br>
+		<span>hover over a character to see its position in the keyboard</span>
 		<br>
 
 		<h3>in-game keyboard reference:</h3>
-		<img src="./tokiocahiragana.png"  width="300" title="hiragana screen"     >
-		<img src="./tokiocakatakana.png"  width="300" title="katakana screen"     >
-		<img src="./tokiocaeisuu.png"     width="300" title="alphanumeric screen" >
+		<img id="screen1" src="./tokiocahiragana.png"  width="300" title="hiragana screen"     >
+		<img id="screen2" src="./tokiocakatakana.png"  width="300" title="katakana screen"     >
+		<img id="screen3" src="./tokiocaeisuu.png"     width="300" title="alphanumeric screen" >
 
 		<h3>notes</h3>
 		<ul>
