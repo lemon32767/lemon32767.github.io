@@ -1,0 +1,31 @@
+<!DOCTYPE HTML>
+<html>
+
+<head>
+  <meta http-equiv="Content-type" content="text/html; charset=utf-8">
+  <title>MIPS (dis)assembler</title>
+
+  <style>
+textarea {
+  resize: none;
+  width: 40%;
+  font-size: 120%;
+  font-family: monospace;
+}
+  </style>
+
+</head>
+
+<body>
+  <div style="text-align: center; width: 90%; margin: 0 auto;">
+    <textarea wrap='off' rows="15" id="assembler-input" placeholder="MIPS assembly input" spellcheck="false"></textarea>
+    <textarea wrap='off' rows="15" readonly id="assembler-output" placeholder="Assembler output"></textarea>
+    <br>
+    <button onclick="assembleAndPresent();">assemble</button>
+
+  </div>
+
+  <script type="text/javascript" src='./mips.js'></script>
+</body>
+
+</html>
