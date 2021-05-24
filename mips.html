@@ -17,12 +17,21 @@ textarea {
 </head>
 
 <body>
-  <div style="text-align: center; width: 90%; margin: 0 auto;">
+  <div style="width: 90%; margin: 0 auto; padding-left: 12%;">
+    <h2>MIPS Assembler</h2>
+    <p>Input MIPS assembly code below. Labels, .org and simple .word directives are also recognized. Comments start with ';' and extend to the end of the line.</p>
     <textarea wrap='off' rows="15" id="assembler-input" placeholder="MIPS assembly input" spellcheck="false"></textarea>
     <textarea wrap='off' rows="15" readonly id="assembler-output" placeholder="Assembler output"></textarea>
     <br>
     <button onclick="assembleAndPresent();">assemble</button>
+    <br>
 
+    <h2>MIPS Disassembler</h2>
+    <p>Input MIPS machine code in hexadecimal below.</p>
+    <textarea wrap='off' rows="15" id="disassembler-input" placeholder="MIPS machine code in hex" spellcheck="false"></textarea>
+    <textarea wrap='off' rows="15" readonly id="disassembler-output" placeholder="Disassembler output"></textarea>
+    <br>
+    <button onclick="disassembleAndPresent();">disassemble</button>
   </div>
 
   <script type="text/javascript" src='./mips.js'></script>
