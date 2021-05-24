@@ -477,7 +477,7 @@ function assembleAndPresent() {
     let lastAddr;
     for (const insn of insns) {
       if (lastAddr !== undefined) {
-        if (lastAddr == insn[0]) throw "! Overwriting instructions at address " + int2hex(lastAddr);
+        if (lastAddr >= insn[0]) throw "! Overwriting instructions at address " + int2hex(insn[0]);
         if (lastAddr < insn[0] - 4) out.value += "........\n";
       } 
       out.value += int2hex(insn[0]) + ':   ' + int2hex(insn[1]) + '    '
