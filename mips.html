@@ -8,7 +8,7 @@
   <style>
 textarea {
   resize: none;
-  width: 40%;
+  width: 45%;
   font-size: 120%;
   font-family: monospace;
 }
@@ -17,7 +17,7 @@ textarea {
 </head>
 
 <body>
-  <div style="width: 90%; margin: 0 auto; padding-left: 12%;">
+  <div style="width: 85%; margin: 0 auto; padding-left: 10%;">
     <h2>MIPS Assembler</h2>
     <p>Input MIPS assembly code below. Labels, .org and simple .word directives are also recognized. Comments start with ';' and extend to the end of the line.</p>
     <textarea wrap='off' rows="15" id="assembler-input" placeholder="MIPS assembly input" spellcheck="false"></textarea>
@@ -30,6 +30,8 @@ textarea {
     <p>Input MIPS machine code in hexadecimal below.</p>
     <textarea wrap='off' rows="15" id="disassembler-input" placeholder="MIPS machine code in hex" spellcheck="false"></textarea>
     <textarea wrap='off' rows="15" readonly id="disassembler-output" placeholder="Disassembler output"></textarea>
+    <br>
+    <label>.org (Start Address) </label><input style="font-family: monospace;" type='text' id="disassembler-org" size="8" placeholder="00000000" spellcheck="false">
     <br>
     <button onclick="disassembleAndPresent();">disassemble</button>
   </div>

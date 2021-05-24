@@ -493,7 +493,13 @@ function assembleAndPresent() {
 function disassembleAndPresent() {
   let out = $('disassembler-output');
   try {
-    let insns = disassembleListing($('disassembler-input').value, 0);
+    const org = parseInt($('disassembler-org').value, 16) || 0;
+    if (org > 0xFFFFFFFF || org < 0)
+      throw "! Invalid starting address (out of range) " + rightpad(org.toString(16), 8, "0");
+    else if ((org & 3) != 0)
+      throw "! Invalid starting address (unaligned) " + rightpad(org.toString(16), 8, "0");
+
+    let insns = disassembleListing($('disassembler-input').value, org);
     out.value = '';
     for (const insn of insns) {
       out.value += int2hex(insn[0]) + ':   ' + int2hex(insn[1]) + '    '
@@ -504,3 +510,15 @@ function disassembleAndPresent() {
     out.value = "! Error!!\n" + e;
   }
 }
+
+window.onload = () => {
+  let disasmOrgPrevVal = $('disassembler-org').value || 0;
+  $('disassembler-org').oninput = (e) => {
+    // revert edit if not a valid hex address
+    const newval = e.target.value;
+    if (newval.length && !newval.match(/^[0-9A-Fa-f]+$/))
+      e.target.value = disasmOrgPrevVal;
+    else
+      disasmOrgPrevVal = e.target.value;
+  };
+};
