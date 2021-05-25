@@ -12,6 +12,55 @@ textarea {
   font-size: 120%;
   font-family: monospace;
 }
+
+.option {
+  display: inline-block;
+  background-color: #d9d9d9;
+  border-radius: 5px;
+  margin-right: 20px;
+  margin-top: 5px;
+  margin-bottom: 5px;
+  padding-top: 5px;
+  padding-left: 5px;
+  padding-right: 5px;
+  padding-bottom: 5px;
+}
+
+label {
+    font-family: monospace;
+    font-size: 14px;
+    position: relative;
+    margin-bottom: 10px;
+}
+input[type="text"] {
+    margin: 0;
+    font-family: monospace;
+    font-size: 16px;
+    appearance: none;
+    box-shadow: none;
+    border-radius: 0px;
+}
+input[type="checkbox"] {
+    margin: 0;
+    position: relative;
+    top: 2px;
+}
+select {
+    font-family: monospace;
+    font-size: 15px;
+    border-radius: 2px;
+    margin-left: 2px;
+}
+
+button {
+    font-size: 16px;
+}
+hr {
+  position: absolute;
+  width: 78%;
+  left: 12.2%;
+}
+
   </style>
 
 </head>
@@ -23,17 +72,63 @@ textarea {
     <textarea wrap='off' rows="15" id="assembler-input" placeholder="MIPS assembly input" spellcheck="false"></textarea>
     <textarea wrap='off' rows="15" readonly id="assembler-output" placeholder="Assembler output"></textarea>
     <br>
-    <button onclick="assembleAndPresent();">assemble</button>
-    <br>
+    <div class="option">
+      <input type='checkbox' id="assembler-hideaddr">
+      <label for='assembler-hideaddr'>Hide Addresses</label>
+    </div>
+    <div class="option">
+      <input type='checkbox' id="assembler-hidemnemonic">
+      <label for="assembler-hidemnemonic">Hide Mnemonics</label>
+    </div>
+    <div class="option">
+      <input type='checkbox' id="assembler-hidenote">
+      <label for="assembler-hidenote">Hide Annotations</label>
+    </div>
+    <div class="option">
+      <select id="assembler-endian">
+        <option value="big" selected>Big</option>
+        <option value="little">Little</option>
+      </select>
+      <label for="assembler-endian">Endianness</label>
+    </div>
+    <button onclick="assembleAndPresent();">ASSEMBLE</button>
+    <br><br><hr><br>
 
     <h2>MIPS Disassembler</h2>
     <p>Input MIPS machine code in hexadecimal below.</p>
+    <div class="option">
+      <label>.org (Start Address)</label>
+      <input type='text' id="disassembler-org" size="8" placeholder="00000000" spellcheck="false">
+    </div>
+    <br>
     <textarea wrap='off' rows="15" id="disassembler-input" placeholder="MIPS machine code in hex" spellcheck="false"></textarea>
     <textarea wrap='off' rows="15" readonly id="disassembler-output" placeholder="Disassembler output"></textarea>
     <br>
-    <label>.org (Start Address) </label><input style="font-family: monospace;" type='text' id="disassembler-org" size="8" placeholder="00000000" spellcheck="false">
-    <br>
-    <button onclick="disassembleAndPresent();">disassemble</button>
+    <div class="option">
+      <input type='checkbox' id="disassembler-hideaddr">
+      <label for='disassembler-hideaddr'>Hide Addresses</label>
+    </div>
+    <div class="option">
+      <input type='checkbox' id="disassembler-hidehex">
+      <label for="disassembler-hidehex">Hide Hex</label>
+    </div>
+    <div class="option">
+      <input type='checkbox' id="disassembler-hidenote">
+      <label for="disassembler-hidenote">Hide Annotations</label>
+    </div>
+    <div class="option">
+      <select id="disassembler-endian">
+        <option value="big" selected>Big</option>
+        <option value="little">Little</option>
+      </select>
+      <label for="disassembler-endian">Endianness</label>
+    </div>
+
+    <button onclick="disassembleAndPresent();">DISASSEMBLE</button>
+  
+    <br><br><hr><br>
+    <a href='./system-console.gif' target="_blank">.</a>
+  
   </div>
 
   <script type="text/javascript" src='./mips.js'></script>

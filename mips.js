@@ -13,7 +13,7 @@ const regIdx2Name = i => registerNames[i];
 function regName2Idx(name) {
   const asIdx = name.substring(0,1) == '$' ? parseInt(name.substring(1), 10) : null;
   if (!nullish(asIdx) && asIdx >= 0 && asIdx < 32) return asIdx;
-  const asName = registerNames.indexOf(name.replace(/^\$/, ""));
+  const asName = registerNames.indexOf(name.replace(/^\$/, "").replace(/^fp$/, "s8"));
   if (asName >= 0) return asName;
 };
 
@@ -26,9 +26,15 @@ function rightpad(s, count, pad=' ') {
 
 // int -> 4-byte hex str (8 characters)
 function int2hex(n) {
-  function pad(s) { return "0".repeat(4-s.length)+s; };
-  return pad(((n >> 16) & 0xFFFF).toString(16)) + pad((n & 0xFFFF).toString(16));
-};
+  return rightpad(((n >> 16) & 0xFFFF).toString(16), 4, '0') + rightpad((n & 0xFFFF).toString(16), 4, '0');
+}
+
+function bswap32(n) {
+  return ((n >> 24) & 0xFF) <<  0
+       | ((n >> 16) & 0xFF) <<  8
+       | ((n >>  8) & 0xFF) << 16
+       | ((n >>  0) & 0xFF) << 24;
+}
 
  ///////////////////////////////////
 ////                             ////
@@ -240,27 +246,34 @@ function assemble(labels, line, address) {
           }
         } else if (fmt == 'imm16' || fmt == 'imm16.u') { // 16-bit immediates
           let negate = false;
-          let str = arg;
-          if (str.substring(0,1) == '-') {
-            negate = true;
-            str = str.substring(1);
-          }
-          let n;
-          let hex = false;
-          if (str.match(/^[0-9]+$/)) n = parseInt(str, 10);
-          else if (str.match(/^0x[0-9a-fA-F]+$/)) {
-            n = parseInt(str.substring(2), 16);
-            hex = true;
-          }
-          if (nullish(n)) throw "! Invalid syntax for immediate value " + arg;
-          if (negate) n = -n;
-          
-          let min, max;
-          if (hex) { min = -0x7FFF - 1, max = 0xFFFF; }
-          else if (fmt == 'imm16') { min = -0x7FFF - 1, max = 0x7FFF; }
-          else /*fmt == 'imm16.u'*/{ min = 0, max = 0xFFFF; }
-          if (n > max || n < min) throw "! Immediate value out of range " + arg;
-          dest.imm16 = n & 0xFFFF;
+          if (Array.isArray(arg) && arg.length == 2 && ['%hi','%lo'].includes(arg[0])) {
+            if (!nullish(labels[arg[1]]))
+              dest.imm16 = (labels[arg[1]] >> (arg[0] == '%hi' ? 16 : 0)) & 0xFFFF;
+            else
+              throw "! No such label: " + arg[1];
+          } else if (typeof arg === 'string') {
+            let str = arg;
+            if (str.substring(0,1) == '-') {
+              negate = true;
+              str = str.substring(1);
+            }
+            let n;
+            let hex = false;
+            if (str.match(/^[0-9]+$/)) n = parseInt(str, 10);
+            else if (str.match(/^0x[0-9a-fA-F]+$/)) {
+              n = parseInt(str.substring(2), 16);
+              hex = true;
+            }
+            if (nullish(n)) throw "! Invalid syntax for immediate value " + arg;
+            if (negate) n = -n;
+            
+            let min, max;
+            if (hex) { min = -0x7FFF - 1, max = 0xFFFF; }
+            else if (fmt == 'imm16') { min = -0x7FFF - 1, max = 0x7FFF; }
+            else /*fmt == 'imm16.u'*/{ min = 0, max = 0xFFFF; }
+            if (n > max || n < min) throw "! Immediate value out of range " + arg;
+            dest.imm16 = n & 0xFFFF;
+          } else throw "! Bad arg: " + arg;
         } else if (fmt == 'imm16.rel') { // 16 (18)-bit address/relative branch offset
           const baseAddr = address + 4;
           let absolute = true;
@@ -287,7 +300,7 @@ function assemble(labels, line, address) {
           if (nullish(target)) throw "! Invalid syntax for branch target " + arg;
           if (negate) target = -target;
           if (!absolute) target = baseAddr + target * 4;
-          if (target & 3) throw "! Unaligned branch target";
+          if (target & 3) throw "! Unaligned branch target " + line;
           const disp = (target - baseAddr) >> 2;
           if (disp < -0x8000 || disp > 0x7FFF) throw "! Jump target " + int2hex(target) + " out of range";
           dest.imm16 = disp & 0xFFFF;            
@@ -315,7 +328,7 @@ function assemble(labels, line, address) {
   return encode(ins);
 };
 
-function disassemble(word, address) {
+function disassemble(word, address, showNote) {
   if (word === 0) return 'nop';
   const ins = decode(word);
   let name;
@@ -386,7 +399,7 @@ function disassemble(word, address) {
   };
   const base = leftpad(name, 8) + display(instructionTable[name].syntax, ins);
   if ((word & ~instrUsedBits[name]) != 0) note = "* non-zero unused bits";
-  if (note) return leftpad(base, 27) + ' ; ' + note;
+  if (note && showNote) return leftpad(base, 27) + ' ; ' + note;
   return base;
 };
 
@@ -423,7 +436,7 @@ function assembleListing(input) {
       }
       if (lastAddress+4 > 0xFFFFFFFF) throw "! .org: address out of range"
       if (lastAddress & 3) throw "! Unaligned address is disallowed"
-    } else if (line.match(/^[_a-zA-Z][_a-zA-Z0-9]*:$/)) { // label
+    } else if (line.match(/^[_a-zA-Z$][_a-zA-Z0-9$]*:$/)) { // label
       addresses.push(lastAddress+4);
       const label = line.replace(/:$/, "");
       if (labels[label] !== undefined) throw "! Redefining label " + label;
@@ -444,7 +457,7 @@ function assembleListing(input) {
   return output;
 };
 
-function disassembleListing(input, orgAddr) {
+function disassembleListing(input, orgAddr, littleEndian, showNote) {
   // remove punctuation and whitespace
   input = input.replace(/([-.,]|\^|\s|[\n])/g, "");
   if (input.length % 8 != 0) throw "! Hex words expected (incorrect bit length in input)";
@@ -455,7 +468,7 @@ function disassembleListing(input, orgAddr) {
     const hex = input.substring(i, i + 8);
     const word = hex.match(/^[0-9A-Fa-f]+$/) ? parseInt(hex, 16) : null;
     if (nullish(word)) throw "! Invalid hex word: " + hex;
-    output.push([addr, word, disassemble(word, addr)]);
+    output.push([addr, word, disassemble(littleEndian ? bswap32(word) : word, addr, showNote)]);
     addr += 4;
   }
 
@@ -471,7 +484,12 @@ function disassembleListing(input, orgAddr) {
 function assembleAndPresent() {
   let out = $('assembler-output');
   try {
-    let insns = assembleListing($('assembler-input').value);
+    const insns = assembleListing($('assembler-input').value);
+    const hideAddr = $('assembler-hideaddr').checked;
+    const hideMnemonic = $('assembler-hidemnemonic').checked;
+    const hideNote = $('assembler-hidenote').checked;
+    const bigEndian = $('assembler-endian').value === 'big';
+
     out.value = '';
     insns.sort((x, y) => y[0] < x[0]);
     let lastAddr;
@@ -480,9 +498,14 @@ function assembleAndPresent() {
         if (lastAddr >= insn[0]) throw "! Overwriting instructions at address " + int2hex(insn[0]);
         if (lastAddr < insn[0] - 4) out.value += "........\n";
       } 
-      out.value += int2hex(insn[0]) + ':   ' + int2hex(insn[1]) + '    '
-                 + disassemble(insn[1], insn[0]) + '\n';
-      lastAddr = insn[0];
+
+      const [addr, word] = insn;
+      if (!hideAddr) out.value += int2hex(addr) + ':   ';
+      out.value += int2hex(bigEndian ? word : bswap32(word));
+      if (!hideMnemonic) out.value += '    ' + disassemble(word, addr, !hideNote);
+      out.value += '\n';
+
+      lastAddr = addr;
     };
   } catch (e) {
     console.error(e);
@@ -493,18 +516,27 @@ function assembleAndPresent() {
 function disassembleAndPresent() {
   let out = $('disassembler-output');
   try {
+    const hideAddr = $('disassembler-hideaddr').checked;
+    const hideHex = $('disassembler-hidehex').checked;
+    const hideNote = $('disassembler-hidenote').checked;
+    const bigEndian = $('disassembler-endian').value === 'big';
     const org = parseInt($('disassembler-org').value, 16) || 0;
     if (org > 0xFFFFFFFF || org < 0)
       throw "! Invalid starting address (out of range) " + rightpad(org.toString(16), 8, "0");
     else if ((org & 3) != 0)
       throw "! Invalid starting address (unaligned) " + rightpad(org.toString(16), 8, "0");
 
-    let insns = disassembleListing($('disassembler-input').value, org);
+    const insns = disassembleListing($('disassembler-input').value, org, !bigEndian, !hideNote);
+
     out.value = '';
     for (const insn of insns) {
-      out.value += int2hex(insn[0]) + ':   ' + int2hex(insn[1]) + '    '
-                 + insn[2] + '\n';
-    };
+      const [addr, word, mnemonic] = insn;
+
+      if (!hideAddr) out.value += int2hex(addr) + ':   ';
+      if (!hideHex) out.value += int2hex(word) + '    ';
+      out.value += mnemonic;
+      out.value += '\n';
+    }
   } catch (e) {
     console.error(e);
     out.value = "! Error!!\n" + e;
