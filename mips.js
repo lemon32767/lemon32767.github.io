@@ -107,22 +107,24 @@ const instructionTable = {
   'mfc1'   : { 'op': 0x11, 'rs': 0, 'syntax': ['rt', 'fs'] },
   'mtc0'   : { 'op': 0x10, 'rs': 4, 'syntax': ['rt', 'rd'] },
   'mtc1'   : { 'op': 0x11, 'rs': 4, 'syntax': ['rt', 'fs'] },
-  'syscall': { 'op': 0x00, 'funct': 12 },
-  'break'  : { 'op': 0x00, 'funct': 13 },
+  'syscall': { 'op': 0x00, 'funct': 12, 'optsyntax': ['syscode'] },
+  'break'  : { 'op': 0x00, 'funct': 13, 'optsyntax': ['brkcode'] },
   'nop'    : { 'op': 0x00, 'rs': 0, 'rt': 0, 'rd': 0, 'sa': 0, 'funct': 0 }
 }; Object.freeze(instructionTable);
 
 function _decodeEncode(f) {
   // f: (field,offset,size) -> { ... }
-  f('op',    26, 6)
-  f('rs',    21, 5)
-  f('rt',    16, 5)
-  f('rd',    11, 5)
-  f('sa',    6,  5)
-  f('funct', 0,  6)
-  f('imm16', 0, 16)
-  f('imm26', 0, 26)
-  f('fs',    11, 5)
+  f('op',      26, 6)
+  f('rs',      21, 5)
+  f('rt',      16, 5)
+  f('rd',      11, 5)
+  f('sa',      6,  5)
+  f('funct',   0,  6)
+  f('imm16',   0, 16)
+  f('imm26',   0, 26)
+  f('fs',      11, 5)
+  f('brkcode', 16,10)
+  f('syscode',  6,20)
 };
 
 // bit masks containing the bits that each instruction makes use of,
@@ -134,9 +136,10 @@ for (const i in instructionTable) {
   // gather used fields
   let usedFields = [];
   for (const k in instructionTable[i])
-    if (k != 'syntax') usedFields.push(k)
+    usedFields.push(k)
   const visit = x => Array.isArray(x) ? x.forEach(visit) : usedFields.push(x.replace(/\..*$/,""));
   if (instructionTable[i].syntax) visit(instructionTable[i].syntax);
+  if (instructionTable[i].optsyntax) visit(instructionTable[i].optsyntax);
 
   // build bitmask from fields
   _decodeEncode((name, offst, siz) => {
@@ -209,9 +212,11 @@ function assemble(labels, line, address) {
   }
 
   let ins = {};
-  for (const k in insFmt) if (k != 'syntax') ins[k] = insFmt[k];
-  if (args || insFmt.syntax) {
-    if (!insFmt.syntax || !args || args.length != insFmt.syntax.length) throw "! Invalid syntax for " + insName;
+  for (const k in insFmt) ins[k] = insFmt[k];
+  const syntax = insFmt.syntax || insFmt.optsyntax;
+  if (!(!args && insFmt.optsyntax) && (args || syntax)) {
+    if (!syntax || !args)
+      throw "! Invalid syntax for " + insName;
 
     function match(fmt, arg, dest) {
       if (Array.isArray(fmt)) {
@@ -318,11 +323,23 @@ function assemble(labels, line, address) {
           if (target & 3) throw "! Unaligned branch target";
           if ((baseAddr & 0xF0000000) != (target & 0xF0000000)) throw "! Branch target " + int2hex(target) + " out of range";
           dest.imm26 = (target >> 2) & 0x03FFFFFF;
+        } else if (fmt == 'brkcode' || fmt == 'syscode') { // break/syscall code
+            let str = arg;
+            let n;
+            if (str.match(/^[0-9]+$/)) n = parseInt(str, 10);
+            else if (str.match(/^0x[0-9a-fA-F]+$/))
+              n = parseInt(str.substring(2), 16);
+            else
+              throw "! Invalid syntax for immediate value " + arg;
+            
+            const max = (fmt == 'brkcode') ? 0x3FF : 0xFFFFF;  
+            if (n < 0 || n > max) throw "! Immediate value out of range " + arg;
+            dest[fmt] = n;
         } else throw "! Unimplemented syntax " + fmt;
       }
     }
 
-    match(insFmt.syntax, args, ins);
+    match(syntax, args, ins);
   }
 
   return encode(ins);
@@ -336,8 +353,7 @@ function disassemble(word, address, showNote) {
     const insFmt = instructionTable[insName];
     let matches = true;
     for (const k in insFmt) {
-      if (k == 'syntax') continue;
-      if (insFmt[k] != ins[k]) { matches = false; break; }
+      if (!k.match(/syntax/) && insFmt[k] != ins[k]) { matches = false; break; }
     }
     if (matches) { name = insName; break; }
   }
@@ -393,11 +409,14 @@ function disassemble(word, address, showNote) {
         if (nullish(address))
           return int2hex(ins.imm26 << 2);
         return ((address >> 28) & 0xF).toString(16)+int2hex(ins.imm26 << 2).substring(1);
+      } else if (fmt == 'brkcode' || fmt == 'syscode') { // break/syscall code
+        return ins[fmt] ? '0x'+ins[fmt].toString(16) : '';
       } else throw "! Unimplemented syntax " + fmt;
 
     }
   };
-  const base = leftpad(name, 8) + display(instructionTable[name].syntax, ins);
+  const syntax = instructionTable[name].syntax || instructionTable[name].optsyntax;
+  const base = leftpad(name, 8) + display(syntax, ins);
   if ((word & ~instrUsedBits[name]) != 0) note = "* non-zero unused bits";
   if (note && showNote) return leftpad(base, 27) + ' ; ' + note;
   return base;
