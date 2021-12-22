@@ -100,13 +100,24 @@ const instructionTable = {
   'lh'     : { 'op': 0x21, 'syntax': syntax.memory },
   'lhu'    : { 'op': 0x25, 'syntax': syntax.memory },
   'lw'     : { 'op': 0x23, 'syntax': syntax.memory },
+  'lwl'    : { 'op': 0x22, 'syntax': syntax.memory },
+  'lwr'    : { 'op': 0x26, 'syntax': syntax.memory },
   'sb'     : { 'op': 0x28, 'syntax': syntax.memory },
   'sh'     : { 'op': 0x29, 'syntax': syntax.memory },
   'sw'     : { 'op': 0x2B, 'syntax': syntax.memory },
-  'mfc0'   : { 'op': 0x10, 'rs': 0, 'syntax': ['rt', 'rd'] },
+  'swl'    : { 'op': 0x2A, 'syntax': syntax.memory },
+  'swr'    : { 'op': 0x2E, 'syntax': syntax.memory },
+  'cache'  : { 'op': 0x2F, 'syntax': ['cacheop', ['imm16', 'rs']] },
+  'mfc0'   : { 'op': 0x10, 'rs': 0, 'syntax': ['rt', 'fs'] },
+  'mtc0'   : { 'op': 0x10, 'rs': 4, 'syntax': ['rt', 'fs'] },
   'mfc1'   : { 'op': 0x11, 'rs': 0, 'syntax': ['rt', 'fs'] },
-  'mtc0'   : { 'op': 0x10, 'rs': 4, 'syntax': ['rt', 'rd'] },
   'mtc1'   : { 'op': 0x11, 'rs': 4, 'syntax': ['rt', 'fs'] },
+  'cfc1'   : { 'op': 0x11, 'rs': 2, 'syntax': ['rt', 'fs'] },
+  'ctc1'   : { 'op': 0x11, 'rs': 6, 'syntax': ['rt', 'fs'] },
+  'bc1f'   : { 'op': 0x11, 'rs': 8, 'ndtf': 0, 'syntax': ['cc', 'imm16.rel'] },
+  'bc1t'   : { 'op': 0x11, 'rs': 8, 'ndtf': 1, 'syntax': ['cc', 'imm16.rel'] },
+  'bc1fl'  : { 'op': 0x11, 'rs': 8, 'ndtf': 2, 'syntax': ['cc', 'imm16.rel'] },
+  'bc1ft'  : { 'op': 0x11, 'rs': 8, 'ndtf': 3, 'syntax': ['cc', 'imm16.rel'] },
   'syscall': { 'op': 0x00, 'funct': 12, 'optsyntax': ['syscode'] },
   'break'  : { 'op': 0x00, 'funct': 13, 'optsyntax': ['brkcode'] },
   'nop'    : { 'op': 0x00, 'rs': 0, 'rt': 0, 'rd': 0, 'sa': 0, 'funct': 0 }
@@ -114,17 +125,20 @@ const instructionTable = {
 
 function _decodeEncode(f) {
   // f: (field,offset,size) -> { ... }
-  f('op',      26, 6)
-  f('rs',      21, 5)
-  f('rt',      16, 5)
-  f('rd',      11, 5)
-  f('sa',      6,  5)
-  f('funct',   0,  6)
-  f('imm16',   0, 16)
-  f('imm26',   0, 26)
-  f('fs',      11, 5)
-  f('brkcode', 16,10)
-  f('syscode',  6,20)
+  f('op',      26,  6)
+  f('rs',      21,  5)
+  f('rt',      16,  5)
+  f('rd',      11,  5)
+  f('sa',      6,   5)
+  f('funct',   0,   6)
+  f('imm16',   0,  16)
+  f('imm26',   0,  26)
+  f('fs',      11,  5)
+  f('ndtf',    16,  2)
+  f('cc',      18,  3)
+  f('brkcode', 16, 10)
+  f('syscode',  6, 20)
+  f('cacheop', 16,  5)
 };
 
 // bit masks containing the bits that each instruction makes use of,
@@ -324,17 +338,27 @@ function assemble(labels, line, address) {
           if ((baseAddr & 0xF0000000) != (target & 0xF0000000)) throw "! Branch target " + int2hex(target) + " out of range";
           dest.imm26 = (target >> 2) & 0x03FFFFFF;
         } else if (fmt == 'brkcode' || fmt == 'syscode') { // break/syscall code
-            let str = arg;
-            let n;
-            if (str.match(/^[0-9]+$/)) n = parseInt(str, 10);
-            else if (str.match(/^0x[0-9a-fA-F]+$/))
-              n = parseInt(str.substring(2), 16);
-            else
-              throw "! Invalid syntax for immediate value " + arg;
-            
-            const max = (fmt == 'brkcode') ? 0x3FF : 0xFFFFF;  
-            if (n < 0 || n > max) throw "! Immediate value out of range " + arg;
-            dest[fmt] = n;
+          let str = arg;
+          let n;
+          if (str.match(/^[0-9]+$/)) n = parseInt(str, 10);
+          else if (str.match(/^0x[0-9a-fA-F]+$/))
+            n = parseInt(str.substring(2), 16);
+          else
+            throw "! Invalid syntax for immediate value " + arg;
+          
+          const max = (fmt == 'brkcode') ? 0x3FF : 0xFFFFF;  
+          if (n < 0 || n > max) throw "! Immediate value out of range " + arg;
+          dest[fmt] = n;
+        } else if (fmt == 'cacheop') {
+          let str = arg;
+          let n;
+          if (str.match(/^[0-9]+$/)) n = parseInt(str, 10);
+          else if (str.match(/^0x[0-9a-fA-F]+$/))
+            n = parseInt(str.substring(2), 16);
+          if (nullish(n)) throw "! Invalid syntax for cache op " + arg;
+          
+          if (n < 0 || n > 31) throw "! Cache op out of range " + arg;
+          dest.cacheop = n;
         } else throw "! Unimplemented syntax " + fmt;
       }
     }
@@ -411,6 +435,8 @@ function disassemble(word, address, showNote) {
         return ((address >> 28) & 0xF).toString(16)+int2hex(ins.imm26 << 2).substring(1);
       } else if (fmt == 'brkcode' || fmt == 'syscode') { // break/syscall code
         return ins[fmt] ? '0x'+ins[fmt].toString(16) : '';
+      } else if (fmt == 'cacheop') {
+        return '0x'+ins.cacheop.toString(16);
       } else throw "! Unimplemented syntax " + fmt;
 
     }
